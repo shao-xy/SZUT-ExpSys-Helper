@@ -122,7 +122,7 @@ def write_release_readme_note(dst: Path) -> None:
 
 def remove_internal_docs(dst: Path) -> None:
     """移除只面向维护者本人的文档。"""
-    for name in ("分发指南.md",):
+    for name in ("分发指南.md", "发布说明-v0.1.0.md", "发布说明-v0.2.0.md"):
         path = dst / "docs" / name
         if path.exists():
             path.unlink()

@@ -12,8 +12,14 @@ courses:
         end_period: 4
         room: N0000
         batches: 1
+        # 单双周：每周（默认）/ 单周 / 双周；可留空
+        parity: 每周
         experiments:
           - project: 示例实验一
             weeks: [1, 3]
           - project: 示例实验二
             weeks: [4, 7]
+          # 也可以单独指定单双周
+          - project: 示例实验三
+            weeks: [9, 15]
+            parity: 单周

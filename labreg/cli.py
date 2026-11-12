@@ -173,6 +173,7 @@ def cmd_plan(args) -> int:
                     start_period=exp.slot.start_period,
                     end_period=exp.slot.end_period,
                     room=exp.slot.room,
+                    parity=exp.slot.parity,
                 )
     out.emit({"config": str(target), "courses": len(plans)})
     return 0
@@ -380,6 +381,7 @@ def cmd_run(args) -> int:
                                                 start_period=slot.start_period,
                                                 end_period=slot.end_period,
                                                 room=slot.room,
+                                                parity=slot.parity,
                                             ),
                                             force=args.force)
                 out.line(f"[排课] {label}: {result.message}")

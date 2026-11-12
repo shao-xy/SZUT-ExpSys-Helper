@@ -89,6 +89,31 @@ def load_settings(env_file: Path | None = None) -> Settings:
     )
 
 
+PARITY_EVERY = ""        # 每周（站点 ddldsz 留空）
+PARITY_ODD = "单周"
+PARITY_EVEN = "双周"
+_VALID_PARITY = {"": PARITY_EVERY, "每周": PARITY_EVERY,
+                  "单周": PARITY_ODD, "双周": PARITY_EVEN}
+
+
+def normalize_parity(value: object, where: str = "") -> str:
+    """规范化单双周取值。
+
+    站点只有三个选项：留空（每周）、单周、双周。
+    这里同时接受「每周」「all」之类的等价写法，出错时给出明确提示。
+    """
+    text = str(value or "").strip()
+    if text.lower() in {"all", "every", "weekly"}:
+        text = "每周"
+    if text not in _VALID_PARITY:
+        label = f"{where} 的" if where else ""
+        raise ValueError(
+            f"{label}parity 取值无效：{value!r}，"
+            f"只支持「每周」「单周」「双周」或留空"
+        )
+    return _VALID_PARITY[text]
+
+
 @dataclass
 class SlotPlan:
     """单个实验的时间位置。"""
@@ -99,12 +124,14 @@ class SlotPlan:
     start_period: int
     end_period: int
     room: str
+    parity: str = ""       # 单双周：""（每周）/ "单周" / "双周"
 
     @property
     def describe(self) -> str:
         """人类可读描述，与计划文件中的写法一致。"""
+        suffix = f" {self.parity}" if self.parity else ""
         return (f"第{self.start_week}-{self.end_week}周 {self.weekday} "
-                f"{self.start_period}-{self.end_period}节 @{self.room}")
+                f"{self.start_period}-{self.end_period}节 @{self.room}{suffix}")
 
 
 @dataclass
@@ -116,9 +143,7 @@ class ExperimentPlan:
 
     @property
     def describe(self) -> str:
-        s = self.slot
-        return (f"第{s.start_week}-{s.end_week}周 {s.weekday} "
-                f"{s.start_period}-{s.end_period}节 @{s.room}")
+        return self.slot.describe
 
 
 @dataclass
@@ -131,6 +156,7 @@ class ClassPlan:
     start_period: int = 1
     end_period: int = 2
     room: str = ""
+    parity: str = ""            # 班级默认单双周
     experiments: list[ExperimentPlan] = field(default_factory=list)
     batches: int = 1
 
@@ -165,6 +191,7 @@ def load_course_plans(config_path: Path) -> list[CoursePlan]:
                 start_period: 3
                 end_period: 4
                 room: N0000
+                parity: 单周            # 可选，""（默认每周）/ 单周 / 双周
                 experiments:
                   - project: Redis
                     weeks: [1, 3]
@@ -174,6 +201,7 @@ def load_course_plans(config_path: Path) -> list[CoursePlan]:
     for course in data.get("courses", []) or []:
         classes: list[ClassPlan] = []
         for cls in course.get("classes", []) or []:
+            class_parity = normalize_parity(cls.get("parity", ""), str(cls.get("name", "")))
             experiments = []
             for exp in cls.get("experiments", []) or []:
                 weeks = exp.get("weeks") or []
@@ -192,6 +220,9 @@ def load_course_plans(config_path: Path) -> list[CoursePlan]:
                                                       cls.get("start_period", 1))),
                             end_period=int(exp.get("end_period", cls.get("end_period", 2))),
                             room=str(exp.get("room", cls.get("room", ""))),
+                            parity=normalize_parity(
+                                exp.get("parity", class_parity),
+                                f"{cls.get('name')} / {exp.get('project')}"),
                         ),
                     )
                 )
@@ -203,6 +234,7 @@ def load_course_plans(config_path: Path) -> list[CoursePlan]:
                     start_period=int(cls.get("start_period", 1)),
                     end_period=int(cls.get("end_period", 2)),
                     room=str(cls.get("room", "")),
+                    parity=class_parity,
                     experiments=experiments,
                     batches=int(cls.get("batches", 1)),
                 )

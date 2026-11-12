@@ -79,3 +79,38 @@ def test_slot_describe() -> None:
     slot = Slot(start_week=1, end_week=3, weekday="星期四",
                 start_period=3, end_period=4, room="N6101")
     assert slot.describe == "第1-3周 星期四 3-4节 @N6101"
+
+
+def test_parity_describe() -> None:
+    slot = Slot(start_week=9, end_week=9, weekday="星期二",
+                start_period=1, end_period=2, room="N0000", parity="单周")
+    assert slot.describe == "第9-9周 星期二 1-2节 @N0000 单周"
+
+
+def test_expected_weeks_every_week() -> None:
+    slot = Slot(start_week=1, end_week=4, weekday="星期二",
+                start_period=1, end_period=2, room="N0000")
+    assert slot.expected_weeks == [1, 2, 3, 4]
+
+
+def test_expected_weeks_odd() -> None:
+    slot = Slot(start_week=1, end_week=8, weekday="星期二",
+                start_period=1, end_period=2, room="N0000", parity="单周")
+    assert slot.expected_weeks == [1, 3, 5, 7]
+
+
+def test_expected_weeks_even() -> None:
+    slot = Slot(start_week=1, end_week=8, weekday="星期二",
+                start_period=1, end_period=2, room="N0000", parity="双周")
+    assert slot.expected_weeks == [2, 4, 6, 8]
+
+
+def test_parity_idempotency_ignores_even_week_row() -> None:
+    """单周排课不应被偶数周那条记录误判为已排。"""
+    s = FakeScheduler()
+    slot = Slot(start_week=9, end_week=9, weekday="星期二",
+                start_period=1, end_period=2, room="N0000", parity="单周")
+    assert s.is_already_scheduled([row(9, weekday="星期二", start=1, end=2,
+                                       place="N0000")], slot)
+    assert not s.is_already_scheduled([row(10, weekday="星期二", start=1, end=2,
+                                            place="N0000")], slot)

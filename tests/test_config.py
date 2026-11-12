@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from labreg.config import load_course_plans  # noqa: E402
+from labreg.config import load_course_plans, normalize_parity  # noqa: E402
 
 SAMPLE = """
 courses:
@@ -31,6 +31,28 @@ courses:
             start_period: 6
             end_period: 7
             room: N6111
+"""
+
+PARITY_SAMPLE = """
+courses:
+  - name: 测试课程
+    course_code: "00000000"
+    classes:
+      - name: 测试课程-0002A
+        weekday: 星期二
+        start_period: 1
+        end_period: 2
+        room: N0000
+        parity: 单周
+        experiments:
+          - project: Gamma
+            weeks: [9, 9]
+          - project: Delta
+            weeks: [10, 12]
+            parity: 双周
+          - project: Epsilon
+            weeks: [1, 4]
+            parity: 每周
 """
 
 
@@ -94,3 +116,51 @@ def test_invalid_weeks_rejected(tmp_path: Path) -> None:
     except ValueError:
         return
     raise AssertionError("weeks 只有一个值时应抛出 ValueError")
+
+
+def test_parity_defaults_to_every_week(tmp_path: Path) -> None:
+    plans = load_course_plans(write_sample(tmp_path))
+    cls = plans[0].classes[0]
+    assert cls.parity == ""
+    assert cls.slot_for(cls.experiments[0]).parity == ""
+
+
+def test_parity_inherited_from_class(tmp_path: Path) -> None:
+    path = tmp_path / "courses.yaml"
+    path.write_text(PARITY_SAMPLE, encoding="utf-8")
+    cls = load_course_plans(path)[0].classes[0]
+    assert cls.parity == "单周"
+    assert cls.slot_for(cls.experiments[0]).parity == "单周"
+
+
+def test_parity_overridden_by_experiment(tmp_path: Path) -> None:
+    path = tmp_path / "courses.yaml"
+    path.write_text(PARITY_SAMPLE, encoding="utf-8")
+    cls = load_course_plans(path)[0].classes[0]
+    assert cls.slot_for(cls.experiments[1]).parity == "双周"
+    # 「每周」应被规范化为空值，即站点上的留空
+    assert cls.slot_for(cls.experiments[2]).parity == ""
+
+
+def test_parity_appears_in_describe(tmp_path: Path) -> None:
+    path = tmp_path / "courses.yaml"
+    path.write_text(PARITY_SAMPLE, encoding="utf-8")
+    cls = load_course_plans(path)[0].classes[0]
+    assert cls.slot_for(cls.experiments[0]).describe == "第9-9周 星期二 1-2节 @N0000 单周"
+
+
+def test_normalize_parity_accepts_aliases() -> None:
+    assert normalize_parity("") == ""
+    assert normalize_parity("每周") == ""
+    assert normalize_parity("all") == ""
+    assert normalize_parity("单周") == "单周"
+    assert normalize_parity(" 双周 ") == "双周"
+
+
+def test_normalize_parity_rejects_invalid() -> None:
+    try:
+        normalize_parity("隔周", "某班")
+    except ValueError as exc:
+        assert "隔周" in str(exc)
+        return
+    raise AssertionError("非法 parity 应抛出 ValueError")

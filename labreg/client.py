@@ -90,14 +90,16 @@ class SiteClient:
                     el.get("name"): el.get("value") or ""
                     for el in tree.xpath("//input[@type='hidden'][@name]")
                 }
-                if found:
+                # 只有真正的页面才更新隐藏域。
+                # 冲突检查等接口返回的是纯文本，用 lxml 解析后没有 form，
+                # 若在此清空隐藏域，后续表单提交就会丢失 __VIEWSTATE 而被站点拒绝。
+                is_page = bool(found) or bool(tree.xpath("//form"))
+                if is_page:
                     self.hidden_fields = found
-                else:
-                    self.hidden_fields = {}
-                # 页面没有 __EVENTVALIDATION 时必须清掉旧值，否则回发校验失败
-                for key in VIEWSTATE_KEYS:
-                    if key not in found:
-                        self.hidden_fields.pop(key, None)
+                    # 页面没有 __EVENTVALIDATION 时必须清掉旧值，否则回发校验失败
+                    for key in VIEWSTATE_KEYS:
+                        if key not in found:
+                            self.hidden_fields.pop(key, None)
             for key in ("sid", "screen", "roles"):
                 m = re.search(rf"[?&]{key}=([^&\"']+)", resp.url)
                 if m:

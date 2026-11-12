@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from urllib.parse import urlencode
 
 from . import pages
@@ -33,31 +33,30 @@ class Slot:
     end_period: int       # 4
     room: str             # 教室名，如 N0000
     lab_alias: str = ""   # 实验室别名，如 算法设计实验室
+    parity: str = ""      # 单双周：""（每周）/ "单周" / "双周"
 
     def __str__(self) -> str:
-        return (f"第{self.start_week}-{self.end_week}周 {self.weekday} "
-                f"{self.start_period}-{self.end_period}节 @{self.room}")
+        return self.describe
 
     @property
     def describe(self) -> str:
         """与计划文件中的写法一致的描述。"""
+        suffix = f" {self.parity}" if self.parity else ""
         return (f"第{self.start_week}-{self.end_week}周 {self.weekday} "
-                f"{self.start_period}-{self.end_period}节 @{self.room}")
-
-
-@dataclass
-class SchedulePlan:
-    """一个课程的完整排课计划。"""
-
-    course_code: str                 # 00000000
-    course_name: str                 # 示例课程
-    class_name: str                  # 示例课程-0001A
-    slots: list[Slot] = field(default_factory=list)
+                f"{self.start_period}-{self.end_period}节 @{self.room}{suffix}")
 
     @property
-    def has_parity(self) -> bool:
-        """单双周。站点只提供“单周/双周”选项，每周排课即不勾选。"""
-        return False
+    def expected_weeks(self) -> list[int]:
+        """该时间段实际应产生的周次。
+
+        每周排课产生区间内全部周次；单双周排课只产生奇数周或偶数周。
+        """
+        weeks = list(range(self.start_week, self.end_week + 1))
+        if self.parity == "单周":
+            return [w for w in weeks if w % 2 == 1]
+        if self.parity == "双周":
+            return [w for w in weeks if w % 2 == 0]
+        return weeks
 
 
 @dataclass
@@ -307,7 +306,7 @@ class Scheduler:
             "ddlxm": xmid,
             "ddlzc1": str(slot.start_week),
             "ddlzc2": str(slot.end_week),
-            "ddldsz": "",            # 每周排课：不选单双周
+            "ddldsz": slot.parity,   # 每周排课留空；单周/双周提交对应选项
             "ddljctype": "标准时间节次",
             "ddljie1": str(slot.start_period),
             "ddljie2": str(slot.end_period),
@@ -360,11 +359,14 @@ class Scheduler:
     def is_already_scheduled(self, rows: list[dict], slot: Slot) -> bool:
         """判断目标时间段是否已排课（按周次逐一比对）。
 
-        站点每周生成一条记录，因此第1-3周会产生第1、2、3周共三条。
+        站点每周生成一条记录，因此第1-3周会产生第1、2、3周共三条；
+        单双周排课只产生奇数周或偶数周的记录。
         """
         if not rows:
             return False
-        expected = set(range(slot.start_week, slot.end_week + 1))
+        expected = set(slot.expected_weeks)
+        if not expected:
+            return False
         matched: set[int] = set()
         for row in rows:
             parsed = pages.parse_row_time(row["time"])
