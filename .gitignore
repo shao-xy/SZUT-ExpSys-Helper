@@ -1,0 +1,27 @@
+# 本地凭据
+.env
+.env.local
+*.har
+var/
+
+# 个人排课计划（含课程代码、班级、周次、教室）
+configs/courses.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Agent Skill 安装目录
+.claude/skills/
+.agents/skills/

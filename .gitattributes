@@ -1,0 +1,14 @@
+# 统一以 LF 存储入库，避免 Windows 上 PowerShell 的 CRLF 造成解析差异
+* text=auto eol=lf
+
+*.py text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+
+# 二进制
+*.har binary
+*.png binary
+*.jpg binary

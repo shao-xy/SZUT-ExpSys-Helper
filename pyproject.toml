@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "labreg"
+version = "0.2.0"
+description = "实验教学管理系统课程排课自动化工具"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.32,<3",
+    "python-dotenv>=1.0,<2",
+    "PyYAML>=6.0,<7",
+    "lxml>=5.0,<6",
+    "pycryptodome>=3.20,<4",
+    "ddddocr>=1.5,<2",
+]
+
+[project.scripts]
+labreg = "labreg.cli:main"
+
+[tool.setuptools]
+packages = ["labreg"]
+
+[tool.setuptools.package-data]
+labreg = ["skill/*", "templates/*"]
